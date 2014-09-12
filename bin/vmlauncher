@@ -1,39 +1,43 @@
 #!/usr/bin/env python
 
-from vmlauncher.commands import dry_start, dry_stop, start, stop 
+from vmlauncher.commands import dry_start, dry_stop, start, stop
 
 COMMAND_DISPATCHER = {
-    "DRYSTART" : dry_start,
-    "DRYSTOP"  : dry_stop,
-    "START"    : start,
-    "STOP"     : stop,
+    "drystart": dry_start,
+    "drystop":  dry_stop,
+    "start":    start,
+    "stop":     stop,
 }
+
+DEFAULT_PORT=443
+DEFAULT_CONF = "/etc/vmlauncher/vmlauncher.conf"
 
 def main():
     from vmlauncher import __version__
     import argparse
 
     parser = argparse.ArgumentParser(description='Command-line client to send start/stop commands to a set of VMs in a VMWare vCenter host.',
-                                     formatter_class=argparse.RawDescriptionHelpFormatter,
-                                     epilog='')
-    parser.add_argument('command', type=str, help="Command to execute (drystart, drystop, start or stop)")
-    parser.add_argument('-s', '--scope', type=str, help="Limit command to act on scope defined in a file")
-    parser.add_argument('-u', '--user', type=str, help="Specify the user account to use to connect to vCenter")
-    parser.add_argument('-p', '--password', type=str, help="Specify the password associated with the user account to use to connect to vCenter")
-    parser.add_argument('-r', '--cluster', type=str, help="Specify the cluster name to run commands on (* means all clusters)")
-    parser.add_argument('-c', '--config', type=str, help="Configuration file to use")
+                                     formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('command',          type=str, help="Command to execute (%s)" % ", ".join(sorted(COMMAND_DISPATCHER.keys())))
+    parser.add_argument('-s', '--scope',    type=str, help="Limit command to act on scope defined in a file")
+    parser.add_argument('-u', '--user',     type=str, help="Specify the user account to use to connect to vCenter")
+    parser.add_argument('-p', '--password', type=str, help="Specify the password associated with the user account")
+    parser.add_argument('-t', '--target',   type=str, help="Specify the vCenter host to connect to")
+    parser.add_argument('-o', '--port',     type=int, default=DEFAULT_PORT, help='Port to connect on (default is %d)'% DEFAULT_PORT)
+    parser.add_argument('-r', '--cluster',  type=str, help="Specify the cluster name to run commands on (* means all clusters)")
+    parser.add_argument('-c', '--config',   type=str, default=DEFAULT_CONF,
+                                            help="Configuration file to use (default is '%s')" % DEFAULT_CONF)
     parser.add_argument('-v', '--version', action='version', help="Print program version and exit.", version="%s %s" % ("%(prog)s", __version__))
-    
+
     args = parser.parse_args()
 
-    command = args.command.upper()
-
+    command = args.command.lower()
     command_proc = COMMAND_DISPATCHER.get(command, None)
 
     if not command_proc:
-       print 'Error: command "%s" in unknown, please refer to help for the list of allowed commands.' % args.command
-       return
- 
+        print 'Error: command "%s" in unknown, please refer to help for the list of allowed commands.' % args.command
+        return
+
     command_proc(args)
 
 if __name__ == '__main__':

@@ -10,20 +10,17 @@ from distutils.core import setup
 setup(name='vmlauncher',
       version=__version__,
       description='vCenter VM start/stop commander',
-      long_description='This command-line tool lets you start/stop a set of VMs in a VMWare vCenter host in a pre-defined order.',
+      long_description='This command-line tool lets you start/stop a set of '
+                       'VMs in a VMWare vCenter host in a pre-defined order.',
       author=__author__,
       author_email='contact@sebbrochet.com',
       url='https://code.google.com/p/vmlauncher/',
       platforms=['linux'],
       license='MIT License',
       install_requires=['paramiko'],
-      package_dir={ 'vmlauncher': 'lib/vmlauncher' },
-      packages=[
-         'vmlauncher',
-      ],
-      scripts=[
-         'bin/vmlauncher',
-      ],
+      package_dir={'vmlauncher': 'lib/vmlauncher'},
+      packages=['vmlauncher'],
+      scripts=['bin/vmlauncher'],
       classifiers=[
           'Development Status :: 4 - Beta',
           'Environment :: Console',
