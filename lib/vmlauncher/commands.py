@@ -1,122 +1,219 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 import atexit
 from pyVim import connect
-from pyVmomi import vim
+from pyVmomi import vim, vmodl
 
-# List of properties.
-# See: http://goo.gl/fjTEpW
-# for all properties.
-vm_properties = ["name", "config.uuid", "config.hardware.numCPU",
-                 "config.hardware.memoryMB", "guest.guestState",
-                 "config.guestFullName", "config.guestId",
-                 "config.version"]
 
-LAUNCHER_CUSTOM_FIELD= "vmlauncher_gid"
+LAUNCHER_CUSTOM_FIELD = "vmlauncher_gid"
 
-def connect_IFP(args):
+
+def myprint(unicodeobj):
+    import sys
+    print unicodeobj.encode(sys.stdout.encoding or 'utf-8')
+
+
+def get_service_instance(args):
     service_instance = None
 
     try:
-       service_instance = connect.SmartConnect(host=args.target,
-                                               user=args.user,
-                                               pwd=args.password,
-                                               port=int(args.port))
-       atexit.register(connect.Disconnect, service_instance)
+        service_instance = connect.SmartConnect(host=args.target,
+                                                user=args.user,
+                                                pwd=args.password,
+                                                port=int(args.port))
+        atexit.register(connect.Disconnect, service_instance)
     except IOError as e:
-       pass
+        pass
+    except vim.fault.InvalidLogin, e:
+        raise SystemExit("Error: %s" % e.msg)
 
     if not service_instance:
-       raise SystemExit("Unable to connect to target with supplied info.")
+        raise SystemExit("Error: unable to connect to target with supplied info.")
 
     return service_instance
 
-def get_custom_attribute_id(service_instance, custom_attribute_name):
-    found = False
-    custom_attribute_id = 0
 
-    content = service_instance.RetrieveContent()
-    for field_def in content.customFieldsManager.field:
-        if field_def.name == custom_attribute_name:
-           found = True
-           custom_attribute_id = field_def.key
-           break
+def get_all_vm(service_instance, custom_attribute_name, cluster_name):
+    def get_custom_attribute_id(service_instance, custom_attribute_name):
+        found = False
+        custom_attribute_id = 0
 
-    return found, custom_attribute_id
+        content = service_instance.RetrieveContent()
+        for field_def in content.customFieldsManager.field:
+            if field_def.name == custom_attribute_name:
+                found = True
+                custom_attribute_id = field_def.key
+                break
 
-def print_vm_info(vm, custom_attribute_id, depth=1, max_depth=10):
-    """
-    Print information for a particular virtual machine or recurse into a
-    folder with depth protection
-    """
+        return found, custom_attribute_id
 
-    # if this is a group it will have children. if it does, recurse into them
-    # and then return
-    if hasattr(vm, 'childEntity'):
-        if depth > max_depth:
-            return
-        vmList = vm.childEntity
-        for c in vmList:
-            print_vm_info(c, depth + 1)
-        return
-
-    summary = vm.summary
-    print "Name         : ", summary.config.name
-    print "Path         : ", summary.config.vmPathName
-    print "State        : ", summary.runtime.powerState
-
-    if summary.customValue is not None:
-        for value in summary.customValue: 
-            if value.key == custom_attribute_id:
-                print "Launcher GID : ", value.value
-    print ""
-
-
-def get_all_vm(service_instance, custom_attribute_id):
     def get_or_create_bucket(vm_dict, group_id):
         key = str(group_id)
         bucket = vm_dict.get(key, [])
-        vm_dict[key] = bucket 
+        vm_dict[key] = bucket
 
         return bucket
- 
-    vm_dict = {}
 
-    content = service_instance.RetrieveContent()
+    def get_dict_with_vm(custom_attribute_id, cluster_name):
+        def is_in_cluster(vm, cluster_name):
+            return cluster_name == '' or get_full_name(vm).split('/')[1] == cluster_name
 
-    object_view = content.viewManager.CreateContainerView(content.rootFolder,
-                                                          [], True)
-    for obj in object_view.view:
-        if isinstance(obj, vim.VirtualMachine) and len(obj.value):
-            for value in obj.value:
-                if value.key == custom_attribute_id:
+        vm_dict = {}
+        content = service_instance.RetrieveContent()
+        object_view = content.viewManager.CreateContainerView(content.rootFolder, [vim.VirtualMachine], True)
+
+        for vm in object_view.view:
+            for value in vm.value:
+                if value.key == custom_attribute_id and value.value and is_in_cluster(vm, cluster_name):
                     bucket = get_or_create_bucket(vm_dict, value.value)
-                    bucket.append(obj)
+                    bucket.append(vm)
 
-    object_view.Destroy()
-    return vm_dict
+        object_view.Destroy()
 
-    
-def start(args):
-   print "start commandi %s" % args
+        return vm_dict
+
+    found, custom_attribute_id = get_custom_attribute_id(service_instance, custom_attribute_name)
+
+    if not found:
+        raise SystemExit('Error: custom attribute "%s" is not defined, please define it first in vCenter' % custom_attribute_name)
+
+    vm_dict = get_dict_with_vm(custom_attribute_id, cluster_name)
+    vm_list_by_gid = [[key, vm_dict[str(key)]] for key in sorted([int(k) for k in vm_dict.keys()])]
+
+    return vm_list_by_gid
+
 
 def stop(args):
-   print "Stop command %s" % args
+    print "Stop command %s" % args
+
+
+def get_full_name(vm):
+    current = vm
+    full_name = vm.name
+
+    while hasattr(current, 'parentVApp'):
+        full_name = "%s/%s" % (current.parentVApp.name, full_name)
+        current = current.parentVApp
+
+    while hasattr(current, 'parent'):
+        full_name = "%s/%s" % (current.parent.name, full_name)
+        current = current.parent
+
+    return full_name
+
+
+def display_all_vm(vm_list_by_gid):
+    def display_vm(vm):
+        myprint("%s (%s) - %s" % (vm.name, get_full_name(vm), vm.summary.runtime.powerState))
+
+    for gid, vm_list in vm_list_by_gid:
+        print "%d:" % gid
+
+        for vm in vm_list:
+            display_vm(vm)
+
+        print ""
+
+def WaitForTasks(tasks, si):
+   """
+   Given the service instance si and tasks, it returns after all the
+   tasks are complete
+   """
+
+   pc = si.content.propertyCollector
+
+   taskList = [str(task) for task in tasks]
+
+   # Create filter
+   objSpecs = [vmodl.query.PropertyCollector.ObjectSpec(obj=task) for task in tasks]
+   propSpec = vmodl.query.PropertyCollector.PropertySpec(type=vim.Task, pathSet=[], all=True)
+   filterSpec = vmodl.query.PropertyCollector.FilterSpec()
+   filterSpec.objectSet = objSpecs
+   filterSpec.propSet = [propSpec]
+   filter = pc.CreateFilter(filterSpec, True)
+
+   try:
+      version, state = None, None
+
+      # Loop looking for updates till the state moves to a completed state.
+      while len(taskList):
+         update = pc.WaitForUpdates(version)
+         for filterSet in update.filterSet:
+            for objSet in filterSet.objectSet:
+               task = objSet.obj
+               for change in objSet.changeSet:
+                  if change.name == 'info':
+                     state = change.val.state
+                  elif change.name == 'info.state':
+                     state = change.val
+                  else:
+                     continue
+
+                  if not str(task) in taskList:
+                     continue
+
+                  if state == vim.TaskInfo.State.success:
+                     # Remove task from taskList
+                     taskList.remove(str(task))
+                     print "%s started" % task.info.entityName
+                  elif state == vim.TaskInfo.State.error:
+                     raise task.info.error
+         # Move to next version
+         version = update.version
+   finally:
+      if filter:
+         filter.Destroy()
+
+
+def start_all_vm(service_instance, vm_list_by_gid):
+    def start_vm_IFN(vm):
+        task = None
+
+        if vm.summary.runtime.powerState == "poweredOff":
+             print "Starting %s..." % vm.name
+             task = vm.PowerOn()
+        else:
+             print "%s is already powered ON" % vm.name
+
+        return task
+
+    for gid, vm_list in vm_list_by_gid:
+        print "Starting group %d..." % gid
+
+        tasks = []
+
+        for vm in vm_list:
+            task = start_vm_IFN(vm)
+            if task:
+                tasks.append(task)    
+
+        if tasks:
+           WaitForTasks(tasks, service_instance)
+
+        print ""
+
+
+def start(args):
+    service_instance = get_service_instance(args)
+    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)
+
+    try:
+        start_all_vm(service_instance, vm_list_by_gid)
+    except vmodl.MethodFault as e:
+        raise SystemExit("Error: caught vmodl fault : " + e.msg)
+    except Exception as e:
+        raise SystemExit("Error: caught Exception : " + str(e))
 
 def dry_start(args):
-   service_instance = connect_IFP(args)
-   found, custom_attribute_id = get_custom_attribute_id(service_instance, LAUNCHER_CUSTOM_FIELD)
+    service_instance = get_service_instance(args)
+    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)
 
-   if not found:
-      print "Custom attribute %s is not defined, please define it first in vCenter." % LAUNCHER_CUSTOM_FIELD
-      return
+    display_all_vm(vm_list_by_gid)
 
-   vm_dict = get_all_vm(service_instance, custom_attribute_id)
-   print "VM: %s" % vm_dict
 
-   #for obj in vm_list:
-   #   print_vm_info(obj, custom_attribute_id)  
-
-    
 def dry_stop(args):
-   print "DryStop commandi %s" % args
+    service_instance = get_service_instance(args)
+    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)[::-1]
+
+    display_all_vm(vm_list_by_gid)

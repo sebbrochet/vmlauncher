@@ -24,7 +24,7 @@ def main():
     parser.add_argument('-p', '--password', type=str, help="Specify the password associated with the user account")
     parser.add_argument('-t', '--target',   type=str, help="Specify the vCenter host to connect to")
     parser.add_argument('-o', '--port',     type=int, default=DEFAULT_PORT, help='Port to connect on (default is %d)'% DEFAULT_PORT)
-    parser.add_argument('-r', '--cluster',  type=str, help="Specify the cluster name to run commands on (* means all clusters)")
+    parser.add_argument('-r', '--cluster',  type=str, default='', help="Specify the cluster name to run commands on (default is all clusters)")
     parser.add_argument('-c', '--config',   type=str, default=DEFAULT_CONF,
                                             help="Configuration file to use (default is '%s')" % DEFAULT_CONF)
     parser.add_argument('-v', '--version', action='version', help="Print program version and exit.", version="%s %s" % ("%(prog)s", __version__))
