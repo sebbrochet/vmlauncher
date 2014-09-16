@@ -84,10 +84,6 @@ def get_all_vm(service_instance, custom_attribute_name, cluster_name):
     return vm_list_by_gid
 
 
-def stop(args):
-    print "Stop command %s" % args
-
-
 def get_full_name(vm):
     current = vm
     full_name = vm.name
@@ -115,7 +111,11 @@ def display_all_vm(vm_list_by_gid):
 
         print ""
 
-def WaitForTasks(tasks, si):
+def WaitForTasks_IFN(tasks, si, callback = None):
+   if tasks:
+       WaitForTasks(tasks, si, callback)
+
+def WaitForTasks(tasks, si, callback = None):
    """
    Given the service instance si and tasks, it returns after all the
    tasks are complete
@@ -156,7 +156,8 @@ def WaitForTasks(tasks, si):
                   if state == vim.TaskInfo.State.success:
                      # Remove task from taskList
                      taskList.remove(str(task))
-                     print "%s started" % task.info.entityName
+                     if callback:
+                         callback(task)
                   elif state == vim.TaskInfo.State.error:
                      raise task.info.error
          # Move to next version
@@ -167,6 +168,9 @@ def WaitForTasks(tasks, si):
 
 
 def start_all_vm(service_instance, vm_list_by_gid):
+    def on_vm_started(task):
+        print "%s started" % task.info.entityName 
+
     def start_vm_IFN(vm):
         task = None
 
@@ -188,8 +192,7 @@ def start_all_vm(service_instance, vm_list_by_gid):
             if task:
                 tasks.append(task)    
 
-        if tasks:
-           WaitForTasks(tasks, service_instance)
+        WaitForTasks_IFN(tasks, service_instance, on_vm_started)
 
         print ""
 
@@ -217,3 +220,66 @@ def dry_stop(args):
     vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)[::-1]
 
     display_all_vm(vm_list_by_gid)
+
+
+def stop_all_vm(service_instance, vm_list_by_gid):
+    def on_vm_shutdown_guest(task):
+        print "%s guest stopped" % task.info.entityName
+    def on_vm_stopped(task):
+        print "%s stopped" % task.info.entityName
+
+    def shutdown_guest_IFN(vm):
+        task = None
+
+        if vm.runtime.powerState == "poweredOn" and vm.guest.toolsStatus == 'toolsOk':
+            print "Shutting down guest on %s..." % vm.name
+            task = vm.ShutdownGuest()
+
+        return task
+
+    def stop_vm_IFN(vm):
+        task = None
+
+        if vm.runtime.powerState == "poweredOn":
+            print "Stopping %s..." % vm.name
+            task = vm.PowerOff()
+        else:
+            print "%s is already powered OFF" % vm.name
+
+        return task
+
+    for gid, vm_list in vm_list_by_gid:
+        print "Stopping group %d..." % gid
+
+        tasks = []
+
+        for vm in vm_list:
+            task = shutdown_guest_IFN(vm)
+            if task:
+                tasks.append(task)
+
+        WaitForTasks_IFN(tasks, service_instance, on_vm_shutdown_guest)
+
+        tasks = []
+
+        for vm in vm_list:
+            task = stop_vm_IFN(vm)
+            if task:
+                tasks.append(task)
+
+        WaitForTasks_IFN(tasks, service_instance, on_vm_stopped)
+
+        print ""
+
+
+def stop(args):
+    service_instance = get_service_instance(args)
+    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)[::-1]
+
+    try:
+        stop_all_vm(service_instance, vm_list_by_gid)
+    except vmodl.MethodFault as e:
+        raise SystemExit("Error: caught vmodl fault : " + e.msg)
+    except Exception as e:
+        raise SystemExit("Error: caught Exception : " + str(e))
+
