@@ -11,6 +11,7 @@ COMMAND_DISPATCHER = {
 
 DEFAULT_PORT=443
 DEFAULT_CONF = "/etc/vmlauncher/vmlauncher.conf"
+DEFAULT_WAIT = 1
 
 def main():
     from vmlauncher import __version__
@@ -24,6 +25,7 @@ def main():
     parser.add_argument('-p', '--password', type=str, help="Specify the password associated with the user account")
     parser.add_argument('-t', '--target',   type=str, help="Specify the vCenter host to connect to")
     parser.add_argument('-o', '--port',     type=int, default=DEFAULT_PORT, help='Port to connect on (default is %d)'% DEFAULT_PORT)
+    parser.add_argument('-w', '--wait',     type=int, default=DEFAULT_WAIT, help='Time to wait in seconds between groups (default is %d)'% DEFAULT_WAIT)
     parser.add_argument('-r', '--cluster',  type=str, default='', help="Specify the cluster name to run commands on (default is all clusters)")
     parser.add_argument('-c', '--config',   type=str, default=DEFAULT_CONF,
                                             help="Configuration file to use (default is '%s')" % DEFAULT_CONF)

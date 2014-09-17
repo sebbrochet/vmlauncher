@@ -4,7 +4,7 @@
 import atexit
 from pyVim import connect
 from pyVmomi import vim, vmodl
-
+import time
 
 LAUNCHER_CUSTOM_FIELD = "vmlauncher_gid"
 
@@ -167,7 +167,7 @@ def WaitForTasks(tasks, si, callback = None):
          filter.Destroy()
 
 
-def start_all_vm(service_instance, vm_list_by_gid):
+def start_all_vm(service_instance, vm_list_by_gid, wait):
     def on_vm_started(task):
         print "%s started" % task.info.entityName 
 
@@ -196,13 +196,15 @@ def start_all_vm(service_instance, vm_list_by_gid):
 
         print ""
 
+        time.sleep(wait)
+
 
 def start(args):
     service_instance = get_service_instance(args)
     vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)
 
     try:
-        start_all_vm(service_instance, vm_list_by_gid)
+        start_all_vm(service_instance, vm_list_by_gid, args.wait)
     except vmodl.MethodFault as e:
         raise SystemExit("Error: caught vmodl fault : " + e.msg)
     except Exception as e:
@@ -223,19 +225,21 @@ def dry_stop(args):
 
 
 def stop_all_vm(service_instance, vm_list_by_gid):
-    def on_vm_shutdown_guest(task):
-        print "%s guest stopped" % task.info.entityName
+    TIMEOUT = 120
+
     def on_vm_stopped(task):
         print "%s stopped" % task.info.entityName
 
     def shutdown_guest_IFN(vm):
-        task = None
+
+        wait_for_guest_shutdown = False
 
         if vm.runtime.powerState == "poweredOn" and vm.guest.toolsStatus == 'toolsOk':
             print "Shutting down guest on %s..." % vm.name
-            task = vm.ShutdownGuest()
+            vm.ShutdownGuest()
+            wait_for_guest_shutdown = True
 
-        return task
+        return wait_for_guest_shutdown
 
     def stop_vm_IFN(vm):
         task = None
@@ -248,23 +252,40 @@ def stop_all_vm(service_instance, vm_list_by_gid):
 
         return task
 
+    def wait_for_guest_shutdown_vms(guest_shutdown_vms, timeout):
+        cur_guest_shutdown_vms = guest_shutdown_vms[:]
+        cur_time = 0
+
+        while cur_guest_shutdown_vms and cur_time < timeout:
+
+            for vm in cur_guest_shutdown_vms:
+                if vm.runtime.powerState == "poweredOff":
+                    print "Guest shutdown of %s OK" % vm.name
+                    cur_guest_shutdown_vms.remove(vm)
+
+            if cur_guest_shutdown_vms:
+                #print "Waiting 1s for guest shutdown..."
+                time.sleep(1)
+                cur_time += 1
+
+
     for gid, vm_list in vm_list_by_gid:
         print "Stopping group %d..." % gid
 
+        guest_shutdown_vms = []
+
+        for vm in vm_list:
+            wait_for_guest_shutdown = shutdown_guest_IFN(vm)
+            if wait_for_guest_shutdown:
+                guest_shutdown_vms.append(vm)
+
+        wait_for_guest_shutdown_vms(guest_shutdown_vms, TIMEOUT)
+
         tasks = []
 
         for vm in vm_list:
-            task = shutdown_guest_IFN(vm)
-            if task:
-                tasks.append(task)
-
-        WaitForTasks_IFN(tasks, service_instance, on_vm_shutdown_guest)
-
-        tasks = []
-
-        for vm in vm_list:
-            task = stop_vm_IFN(vm)
-            if task:
+           task = stop_vm_IFN(vm)
+           if task:
                 tasks.append(task)
 
         WaitForTasks_IFN(tasks, service_instance, on_vm_stopped)
