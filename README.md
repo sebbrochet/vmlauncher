@@ -1,17 +1,17 @@
 ## vmlauncher: Command-line client to send start/stop commands to a set of VMs in a VMWare vCenter host 
 
-Let's say you're managing a VMWare vSphere farm and you need to start/stop of a set of VM in a specific order. 
-You may use starting order that comes with a vApp but there're many limitations
+Let's say you're managing a VMWare vSphere farm and you need to start/stop of a set of VM in a specific order.    
+You may use starting order that comes with a vApp but there're many limitations   
 * vApp requires dedicated resources
 * VApp can't depend on a another vApp
 * ...
 
-You may use only one vApp but it just doesn't scale.
+You may use only one vApp but it just doesn't scale.   
 
-That's why I've designed vmlauncher that let's you specified a group order metadata (i.e `vmlauncher_gid`) for each of the VM you need to start/stop. 
-When ordered, VM will be started sequentially, based on their group order id, from the lowest to the highest values.
-The same goes by for stop where VM are stoppped in reverse order.  
-VM in the same group are started/stopped in parallel.
+That's why I've designed vmlauncher that let's you specified a group order metadata (i.e `vmlauncher_gid`) for each of the VM you need to start/stop.    
+When ordered, VM will be started sequentially, based on their group order id, from the lowest to the highest values.   
+The same goes by for stop where VM are stoppped in reverse order.     
+VM in the same group are started/stopped in parallel.   
 
 Requirements
 * linux box
@@ -27,7 +27,7 @@ Installation:
 `cd vmlauncher`
 * Install requirements with pip   
 `pip install -r requirements.txt`
-* Install vmlauncher binary
+* Install vmlauncher binary   
 `python setup.py install`
 
 Usage:
