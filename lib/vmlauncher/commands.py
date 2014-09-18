@@ -34,7 +34,26 @@ def get_service_instance(args):
     return service_instance
 
 
-def get_all_vm(service_instance, custom_attribute_name, cluster_name):
+def get_vm_from_scope_IFN(scope):
+    if not scope:
+        return None
+
+    vms_from_scope = []
+
+    f = file(scope, "r")
+    lines = f.read().split('\n')
+    for line in lines:
+        if line.startswith('#'):
+            continue
+        value = line.strip()
+
+	if value:
+            vms_from_scope.append(value)
+
+    return vms_from_scope
+
+def get_all_vm(service_instance, custom_attribute_name, args):
+
     def get_custom_attribute_id(service_instance, custom_attribute_name):
         found = False
         custom_attribute_id = 0
@@ -55,9 +74,12 @@ def get_all_vm(service_instance, custom_attribute_name, cluster_name):
 
         return bucket
 
-    def get_dict_with_vm(custom_attribute_id, cluster_name):
+    def get_dict_with_vm(custom_attribute_id, cluster_name, vms_from_scope):
         def is_in_cluster(vm, cluster_name):
             return cluster_name == '' or get_full_name(vm).split('/')[1] == cluster_name
+
+        def is_in_scope(vm, vms_from_scope):
+            return vms_from_scope is None or vm.name in vms_from_scope
 
         vm_dict = {}
         content = service_instance.RetrieveContent()
@@ -65,7 +87,7 @@ def get_all_vm(service_instance, custom_attribute_name, cluster_name):
 
         for vm in object_view.view:
             for value in vm.value:
-                if value.key == custom_attribute_id and value.value and is_in_cluster(vm, cluster_name):
+                if value.key == custom_attribute_id and value.value and is_in_cluster(vm, cluster_name) and is_in_scope(vm, vms_from_scope):
                     bucket = get_or_create_bucket(vm_dict, value.value)
                     bucket.append(vm)
 
@@ -78,7 +100,8 @@ def get_all_vm(service_instance, custom_attribute_name, cluster_name):
     if not found:
         raise SystemExit('Error: custom attribute "%s" is not defined, please define it first in vCenter' % custom_attribute_name)
 
-    vm_dict = get_dict_with_vm(custom_attribute_id, cluster_name)
+    vms_from_scope = get_vm_from_scope_IFN(args.scope)
+    vm_dict = get_dict_with_vm(custom_attribute_id, args.cluster, vms_from_scope)
     vm_list_by_gid = [[key, vm_dict[str(key)]] for key in sorted([int(k) for k in vm_dict.keys()])]
 
     return vm_list_by_gid
@@ -212,14 +235,14 @@ def start(args):
 
 def dry_start(args):
     service_instance = get_service_instance(args)
-    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)
+    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args)
 
     display_all_vm(vm_list_by_gid)
 
 
 def dry_stop(args):
     service_instance = get_service_instance(args)
-    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)[::-1]
+    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args)[::-1]
 
     display_all_vm(vm_list_by_gid)
 
@@ -295,7 +318,7 @@ def stop_all_vm(service_instance, vm_list_by_gid):
 
 def stop(args):
     service_instance = get_service_instance(args)
-    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)[::-1]
+    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args)[::-1]
 
     try:
         stop_all_vm(service_instance, vm_list_by_gid)

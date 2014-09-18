@@ -10,8 +10,37 @@ COMMAND_DISPATCHER = {
 }
 
 DEFAULT_PORT=443
-DEFAULT_CONF = "/etc/vmlauncher/vmlauncher.conf"
 DEFAULT_WAIT = 1
+
+def get_command_and_check_args(args):
+    import os
+
+    args_ok = True
+
+    if args.scope and not os.path.exists(args.scope):
+        print 'Error: scope file "%s" not found.' % args.scope
+        args_ok = False
+   
+    if args.config and not os.path.exists(args.config):
+        print 'Error: config file "%s" not found.' % args.config
+        args_ok = False
+ 
+    if args.port < 0 or args.port > 65535:
+        print 'Error: port should be in the 0-65535 range'
+        args_ok = False
+
+    if args.wait < 0:
+        print 'Error: wait should be a positive number.'
+        args_ok = False
+ 
+    command = args.command.lower()
+    command_proc = COMMAND_DISPATCHER.get(command, None)
+
+    if not command_proc:
+        print 'Error: command "%s" is unknown, please refer to help for the list of allowed commands.' % args.command
+        args_ok = False
+
+    return args_ok, command_proc
 
 def main():
     from vmlauncher import __version__
@@ -20,27 +49,22 @@ def main():
     parser = argparse.ArgumentParser(description='Command-line client to send start/stop commands to a set of VMs in a VMWare vCenter host.',
                                      formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('command',          type=str, help="Command to execute (%s)" % ", ".join(sorted(COMMAND_DISPATCHER.keys())))
-    parser.add_argument('-s', '--scope',    type=str, help="Limit command to act on scope defined in a file")
+    parser.add_argument('-s', '--scope',    type=str, default='', help="Limit command to act on scope defined in a file")
     parser.add_argument('-u', '--user',     type=str, help="Specify the user account to use to connect to vCenter")
     parser.add_argument('-p', '--password', type=str, help="Specify the password associated with the user account")
     parser.add_argument('-t', '--target',   type=str, help="Specify the vCenter host to connect to")
     parser.add_argument('-o', '--port',     type=int, default=DEFAULT_PORT, help='Port to connect on (default is %d)'% DEFAULT_PORT)
     parser.add_argument('-w', '--wait',     type=int, default=DEFAULT_WAIT, help='Time to wait in seconds between groups (default is %d)'% DEFAULT_WAIT)
     parser.add_argument('-r', '--cluster',  type=str, default='', help="Specify the cluster name to run commands on (default is all clusters)")
-    parser.add_argument('-c', '--config',   type=str, default=DEFAULT_CONF,
-                                            help="Configuration file to use (default is '%s')" % DEFAULT_CONF)
+    parser.add_argument('-c', '--config',   type=str, default='', help="Configuration file to use")
     parser.add_argument('-v', '--version', action='version', help="Print program version and exit.", version="%s %s" % ("%(prog)s", __version__))
 
     args = parser.parse_args()
 
-    command = args.command.lower()
-    command_proc = COMMAND_DISPATCHER.get(command, None)
-
-    if not command_proc:
-        print 'Error: command "%s" in unknown, please refer to help for the list of allowed commands.' % args.command
-        return
-
-    command_proc(args)
+    args_ok, command_proc = get_command_and_check_args(args)
+    
+    if args_ok and command_proc:
+        command_proc(args)
 
 if __name__ == '__main__':
     main()
