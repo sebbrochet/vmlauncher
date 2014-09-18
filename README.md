@@ -57,8 +57,9 @@ optional arguments:
                         Specify the cluster name to run commands on (default
                         is all clusters)
   -c CONFIG, --config CONFIG
-                        Configuration file to use (default is
-                        '/etc/vmlauncher/vmlauncher.conf')
+                        Configuration file to use
   -v, --version         Print program version and exit.
 ```
 
+`scope` of VM to be started/stoppped can be defined in a file by listing the short VM names, one by line.   
+A line starting with a `#` is considered as comment and won't be interpreted.     
