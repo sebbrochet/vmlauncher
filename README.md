@@ -63,3 +63,7 @@ optional arguments:
 
 `scope` of VM to be started/stoppped can be defined in a file by listing the short VM names, one by line.   
 A line starting with a `#` is considered as comment and won't be interpreted.     
+
+`config` format is one argument by line (i.e argname=value), argument names are the same ones than the CLI (scope, user, password, ...).   
+A line starting with a `#` is considered as comment and won't be interpreted.    
+Don't put quotes between argument values

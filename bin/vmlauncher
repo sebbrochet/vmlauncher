@@ -10,7 +10,7 @@ COMMAND_DISPATCHER = {
 }
 
 DEFAULT_PORT=443
-DEFAULT_WAIT = 1
+DEFAULT_WAIT = 0
 
 def get_command_and_check_args(args):
     import os
@@ -42,6 +42,51 @@ def get_command_and_check_args(args):
 
     return args_ok, command_proc
 
+class ArgsWithConfig(object):
+    pass
+
+def conf_get_IFP(config, section, option, default):
+    if config.has_option(section, option):
+        return config.get(section, option)
+    else:
+        return default
+
+def conf_get_IFP_int(config, section, option, default):
+    if config.has_option(section, option):
+        return config.getint(section, option)
+    else:
+        return default
+
+
+def get_args_with_config_IFN(args):
+    args_with_config = ArgsWithConfig()
+
+    import os
+
+    if args.config and os.path.exists(args.config):
+        DUMMY_SECTION = '__global__'
+        import ConfigParser
+        import StringIO
+        ini_str = '[%s]\n' % DUMMY_SECTION  + open(args.config, 'r').read()
+        ini_fp = StringIO.StringIO(ini_str)
+        config = ConfigParser.RawConfigParser()
+        config.readfp(ini_fp)
+
+        def update_args_with_ini_IFN(option):
+            if config.has_option(DUMMY_SECTION, option):
+               setattr(args_with_config, option, config.get(DUMMY_SECTION, option))
+
+        update_args_with_ini_IFN('scope')
+        update_args_with_ini_IFN('user')
+        update_args_with_ini_IFN('password')
+        update_args_with_ini_IFN('scope')
+        update_args_with_ini_IFN('target')
+        update_args_with_ini_IFN('port')
+        update_args_with_ini_IFN('wait')
+        update_args_with_ini_IFN('cluster')
+
+    return args_with_config
+
 def main():
     from vmlauncher import __version__
     import argparse
@@ -61,10 +106,14 @@ def main():
 
     args = parser.parse_args()
 
-    args_ok, command_proc = get_command_and_check_args(args)
+    args_with_config = get_args_with_config_IFN(args)
+    
+    parser.parse_args(namespace = args_with_config)
+
+    args_ok, command_proc = get_command_and_check_args(args_with_config)
     
     if args_ok and command_proc:
-        command_proc(args)
+        command_proc(args_with_config)
 
 if __name__ == '__main__':
     main()
