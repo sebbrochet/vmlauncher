@@ -35,7 +35,7 @@ Usage:
 
 ```
 usage: vmlauncher [-h] [-s SCOPE] [-u USER] [-p PASSWORD] [-t TARGET]
-                  [-o PORT] [-r CLUSTER] [-c CONFIG] [-v]
+                  [-o PORT] [-w WAIT] [-r CLUSTER] [-c CONFIG] [-v]
                   command
 
 Command-line client to send start/stop commands to a set of VMs in a VMWare vCenter host.
@@ -53,6 +53,7 @@ optional arguments:
   -t TARGET, --target TARGET
                         Specify the vCenter host to connect to
   -o PORT, --port PORT  Port to connect on (default is 443)
+  -w WAIT, --wait WAIT  Time to wait in seconds between groups (default is 0)
   -r CLUSTER, --cluster CLUSTER
                         Specify the cluster name to run commands on (default
                         is all clusters)
