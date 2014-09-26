@@ -224,7 +224,7 @@ def start_all_vm(service_instance, vm_list_by_gid, wait):
 
 def start(args):
     service_instance = get_service_instance(args)
-    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args.cluster)
+    vm_list_by_gid = get_all_vm(service_instance, LAUNCHER_CUSTOM_FIELD, args)
 
     try:
         start_all_vm(service_instance, vm_list_by_gid, args.wait)
