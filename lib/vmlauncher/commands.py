@@ -87,9 +87,12 @@ def get_all_vm(service_instance, custom_attribute_name, args):
 
         for vm in object_view.view:
             for value in vm.value:
-                if value.key == custom_attribute_id and value.value and is_in_cluster(vm, cluster_name) and is_in_scope(vm, vms_from_scope):
-                    bucket = get_or_create_bucket(vm_dict, value.value)
-                    bucket.append(vm)
+                try:
+                    if value.key == custom_attribute_id and int(value.value) > 0 and is_in_cluster(vm, cluster_name) and is_in_scope(vm, vms_from_scope):
+                        bucket = get_or_create_bucket(vm_dict, value.value)
+                        bucket.append(vm)
+                except ValueError, E:
+                    print "Error: bad value (%s) of %s metadata for %s VM" % (value.value, custom_attribute_name, vm.name)
 
         object_view.Destroy()
 

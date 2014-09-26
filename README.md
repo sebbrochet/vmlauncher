@@ -11,7 +11,8 @@ You may use only one vApp but it just doesn't scale.
 That's why I've designed vmlauncher that let's you specified a group order metadata (i.e `vmlauncher_gid`) for each of the VM you need to start/stop.    
 When ordered, VM will be started sequentially, based on their group order id, from the lowest to the highest values.   
 The same goes by for stop where VM are stoppped in reverse order.     
-VM in the same group are started/stopped in parallel.   
+VM in the same group are started/stopped in parallel.  
+Only VMs with value of `vmlauncher_gid` > 0 are included, so may use a 0 or negative value to temporarily exclude one or several VMs.     
 
 Requirements
 * linux box
