@@ -72,17 +72,22 @@ def get_args_with_config_IFN(args):
         config = ConfigParser.RawConfigParser()
         config.readfp(ini_fp)
 
-        def update_args_with_ini_IFN(option):
+        def update_args_with_ini_IFN(option, option_type = str):
             if config.has_option(DUMMY_SECTION, option):
-               setattr(args_with_config, option, config.get(DUMMY_SECTION, option))
+               if option_type == str:
+                       setattr(args_with_config, option, config.get(DUMMY_SECTION, option))
+               elif option_type == int:
+                       setattr(args_with_config, option, config.getint(DUMMY_SECTION, option))
+               else:
+                   raise Exception("Type not supported %s" % option_type)
 
         update_args_with_ini_IFN('scope')
         update_args_with_ini_IFN('user')
         update_args_with_ini_IFN('password')
         update_args_with_ini_IFN('scope')
         update_args_with_ini_IFN('target')
-        update_args_with_ini_IFN('port')
-        update_args_with_ini_IFN('wait')
+        update_args_with_ini_IFN('port', int)
+        update_args_with_ini_IFN('wait', int)
         update_args_with_ini_IFN('cluster')
 
     return args_with_config
