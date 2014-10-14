@@ -74,9 +74,9 @@ def get_all_vm(service_instance, custom_attribute_name, args):
 
         return bucket
 
-    def get_dict_with_vm(custom_attribute_id, cluster_name, vms_from_scope):
-        def is_in_cluster(vm, cluster_name):
-            return cluster_name == '' or get_full_name(vm).split('/')[1] == cluster_name
+    def get_dict_with_vm(custom_attribute_id, datacenter_name, vms_from_scope):
+        def is_in_datacenter(vm, datacenter_name):
+            return datacenter_name == '' or get_full_name(vm).split('/')[1] == datacenter_name
 
         def is_in_scope(vm, vms_from_scope):
             return vms_from_scope is None or vm.name in vms_from_scope
@@ -88,7 +88,7 @@ def get_all_vm(service_instance, custom_attribute_name, args):
         for vm in object_view.view:
             for value in vm.value:
                 try:
-                    if value.key == custom_attribute_id and int(value.value) > 0 and is_in_cluster(vm, cluster_name) and is_in_scope(vm, vms_from_scope):
+                    if value.key == custom_attribute_id and int(value.value) > 0 and is_in_datacenter(vm, datacenter_name) and is_in_scope(vm, vms_from_scope):
                         bucket = get_or_create_bucket(vm_dict, value.value)
                         bucket.append(vm)
                 except ValueError, E:
@@ -104,7 +104,7 @@ def get_all_vm(service_instance, custom_attribute_name, args):
         raise SystemExit('Error: custom attribute "%s" is not defined, please define it first in vCenter' % custom_attribute_name)
 
     vms_from_scope = get_vm_from_scope_IFN(args.scope)
-    vm_dict = get_dict_with_vm(custom_attribute_id, args.cluster, vms_from_scope)
+    vm_dict = get_dict_with_vm(custom_attribute_id, args.datacenter, vms_from_scope)
     vm_list_by_gid = [[key, vm_dict[str(key)]] for key in sorted([int(k) for k in vm_dict.keys()])]
 
     return vm_list_by_gid
