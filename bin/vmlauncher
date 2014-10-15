@@ -36,6 +36,10 @@ def get_command_and_check_args(args):
     if not args.user:
         print "Error: 'user' parameter is mandatory."
         args_ok = False
+
+    if not args.password:
+        print "Error: 'password' parameter is mandatory."
+        args_ok = False
  
     command = args.command.lower()
     command_proc = COMMAND_DISPATCHER.get(command, None)
