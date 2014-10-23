@@ -15,7 +15,7 @@ VM in the same group are started/stopped in parallel.
 Only VMs with value of `vmlauncher_gid` > 0 are included, so may use a 0 or negative value to temporarily exclude one or several VMs.     
 
 Requirements
-* linux box
+* linux or windows box
 * Python 2.6 or higher
 * [pyvmomi](https://github.com/vmware/pyvmomi) library
 * access to a VMWare vCenter host
